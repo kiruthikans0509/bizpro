@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Compare Areas — BizSpot</title>
+<link rel="stylesheet" href="../styles/main.css"/>
+<style>
+.header{background:var(--accent);color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:100}
+.logo{font-family:var(--font-head);font-weight:800;font-size:19px;display:flex;align-items:center;gap:8px;color:#fff}
+.nav-link{padding:5px 13px;border-radius:6px;font-size:12px;font-weight:600;color:rgba(255,255,255,.7);transition:all .15s}
+.nav-link:hover,.nav-link.active{background:rgba(255,255,255,.18);color:#fff}
+.page{max-width:1160px;margin:0 auto;padding:28px 20px}
+.pg-title{font-family:var(--font-head);font-weight:800;font-size:26px;margin-bottom:4px}
+.pg-sub{font-size:13px;color:var(--ink3);margin-bottom:24px}
+.selector-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:28px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px}
+.sel-field{flex:1;min-width:160px;max-width:260px}
+.sel-field label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:4px}
+.sel-field select{width:100%;padding:8px 10px;border:1.5px solid var(--border2);border-radius:8px;font-size:13px;color:var(--ink);background:var(--surface);outline:none}
+.sel-field select:focus{border-color:var(--accent2)}
+.winner-banner{background:var(--accent-light);border:1.5px solid var(--accent2);border-radius:14px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:14px}
+.winner-icon{font-size:28px}
+.winner-lbl{font-size:11px;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.winner-val{font-family:var(--font-head);font-weight:800;font-size:20px;color:var(--accent)}
+.compare-grid{display:grid;gap:16px}
+.compare-grid.n2{grid-template-columns:1fr 1fr}
+.compare-grid.n3{grid-template-columns:1fr 1fr 1fr}
+@media(max-width:800px){.compare-grid{grid-template-columns:1fr!important}}
+.area-card{border-radius:14px;border:2px solid var(--border);background:var(--surface);overflow:hidden;position:relative}
+.area-card.best{border-color:var(--accent2)}
+.best-badge{position:absolute;top:10px;right:10px;background:var(--accent);color:#fff;font-size:9px;font-weight:700;padding:3px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:.06em}
+.ac-header{background:var(--accent);color:#fff;padding:16px 18px}
+.ac-name{font-family:var(--font-head);font-weight:800;font-size:18px}
+.ac-sub{font-size:11px;opacity:.7;margin-top:2px}
+.ac-score-val{font-family:var(--font-head);font-weight:800;font-size:36px;line-height:1}
+.ac-score-lbl{font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.06em}
+.mini-bar-track{flex:1;height:5px;background:rgba(255,255,255,.3);border-radius:3px;overflow:hidden}
+.mini-bar-fill{height:100%;border-radius:3px;background:rgba(255,255,255,.7)}
+.ac-body{padding:16px}
+.metric-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)}
+.metric-row:last-child{border-bottom:none}
+.metric-lbl{font-size:11px;color:var(--ink3);font-weight:500}
+.metric-val{font-size:13px;font-weight:600;color:var(--ink)}
+.metric-val.good{color:#16a34a}.metric-val.warn{color:#b45309}.metric-val.bad{color:#991b1b}
+.pros-cons{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.pc-block{border-radius:var(--radius-sm);padding:10px 12px}
+.pc-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.pc-item{font-size:11px;display:flex;gap:5px;margin-bottom:3px;line-height:1.4}
+.poi-row{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0 4px}
+.poi-chip{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:600;background:var(--blue-light);color:var(--blue);border:1px solid #bfdbfe}
+.rec-box{background:var(--accent-light);border:1.5px solid var(--accent2);border-radius:var(--radius-sm);padding:10px 12px;margin-top:10px}
+.rec-lbl{font-size:10px;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.rec-val{font-family:var(--font-head);font-weight:700;font-size:14px;color:var(--accent)}
+.spin{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .65s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="logo"><div class="pulse-dot"></div>BizSpot</div>
+  <nav style="display:flex;gap:4px">
+    <a href="../index.html"   class="nav-link">Map</a>
+    <a href="analytics.html"  class="nav-link">Analytics</a>
+    <a href="compare.html"    class="nav-link active">Compare</a>
+  </nav>
+</header>
+
+<div class="page">
+  <div class="pg-title">Compare Areas</div>
+  <div class="pg-sub">Select 2–3 areas to compare side-by-side across all metrics including nearby schools, colleges, hospitals, offices and more.</div>
+
+  <div class="selector-row" id="selectorRow">
+    <div class="sel-field"><label>Area 1</label><select id="area1"><option value="">Select area…</option></select></div>
+    <div class="sel-field"><label>Area 2</label><select id="area2"><option value="">Select area…</option></select></div>
+    <div class="sel-field"><label>Area 3 (optional)</label><select id="area3"><option value="">Select area…</option></select></div>
+    <button class="btn btn-primary" id="compareBtn" style="padding:10px 20px">Compare →</button>
+    <button class="btn btn-secondary" id="clearBtn">Clear</button>
+  </div>
+
+  <div id="winnerBanner" style="display:none"></div>
+  <div id="compareOutput"></div>
+</div>
+
+<script type="module">
+import { getAreas, searchLocations } from '../components/api.js';
+import { potentialColor, potentialTag, competitionTag, rentTag, escHtml } from '../components/utils.js';
+
+let allAreas=[];
+
+async function init(){
+  allAreas=await getAreas();
+  ['area1','area2','area3'].forEach(id=>{
+    const sel=document.getElementById(id);
+    allAreas.forEach(a=>{const o=document.createElement('option');o.value=a.location_name;o.textContent=a.location_name;sel.appendChild(o);});
+  });
+}
+
+async function getAreaData(name){
+  const a=allAreas.find(a=>a.location_name===name); if(!a) return null;
+  const data=await searchLocations({lat:a.lat,lng:a.lng,radius:1.5,limit:500});
+  const rows=data.locations.filter(r=>r.location_name===name);
+  if(!rows.length) return null;
+  const avg=(key)=>+(rows.reduce((s,r)=>s+(r[key]||0),0)/rows.length).toFixed(1);
+  const freq=(key)=>{const f={};rows.forEach(r=>{if(r[key])f[r[key]]=(f[r[key]]||0)+1;});return Object.entries(f).sort((a,b)=>b[1]-a[1]);};
+  return {
+    name, count:rows.length,
+    avgRent:    Math.round(avg('avg_rent_per_sqft')),
+    avgSuccess: +avg('success_rate'),
+    avgComp:    +avg('competition_index'),
+    avgTraffic: Math.round(avg('foot_traffic')),
+    avgIncome:  Math.round(avg('avg_income')),
+    avgSafety:  +avg('safety_index'),
+    avgScore:   Math.round(avg('potential_score')),
+    avgSchools:     +avg('nearby_schools'),
+    avgColleges:    +avg('nearby_colleges'),
+    avgUniversities:+avg('nearby_universities'),
+    avgHospitals:   +avg('nearby_hospitals'),
+    avgClinics:     +avg('nearby_clinics'),
+    avgMalls:       +avg('nearby_malls'),
+    avgSupermarkets:+avg('nearby_supermarkets'),
+    avgOffices:     +avg('nearby_offices'),
+    avgCorporates:  +avg('nearby_corporates'),
+    avgBanks:       +avg('nearby_banks'),
+    avgCourts:      +avg('nearby_courts'),
+    avgGovt:        +avg('nearby_govt_offices'),
+    avgPolice:      +avg('nearby_police'),
+    avgParks:       +avg('nearby_parks'),
+    avgBusStops:    +avg('nearby_bus_stops'),
+    topRec:     (freq('recommended_business')[0]||['—'])[0],
+    topBtypes:  freq('business_type').slice(0,3).map(([n])=>n),
+    parking:    (freq('parking_availability')[0]||['—'])[0],
+  };
+}
+
+function cls(val,max,invert=false){
+  const p=val/max;
+  if(invert){return p<=.35?'good':p<=.65?'warn':'bad';}
+  return p>=.75?'good':p>=.45?'warn':'bad';
+}
+
+function renderCard(a,isBest,all){
+  const maxRent=Math.max(...all.map(x=>x.avgRent));
+  const maxSuccess=Math.max(...all.map(x=>x.avgSuccess));
+  const maxTraffic=Math.max(...all.map(x=>x.avgTraffic));
+  const maxComp=Math.max(...all.map(x=>x.avgComp));
+  const maxScore=Math.max(...all.map(x=>x.avgScore));
+
+  const pros=[], cons=[];
+  if(a.avgSuccess>=70) pros.push('High success rate');
+  else if(a.avgSuccess<50) cons.push('Below-average success rate');
+  if(a.avgComp<=0.35) pros.push('Low market competition');
+  else if(a.avgComp>=0.65) cons.push('Saturated market');
+  if(a.avgRent<=60) pros.push('Affordable commercial rent');
+  else if(a.avgRent>=110) cons.push('High rent — watch margins');
+  if(a.avgTraffic>=7000) pros.push('High foot traffic');
+  else if(a.avgTraffic<=3000) cons.push('Low foot traffic');
+  if(a.avgColleges+a.avgUniversities>=2) pros.push('Strong student market');
+  if(a.avgHospitals>=2) pros.push('Hospital cluster — health biz demand');
+  if(a.avgCorporates>=3) pros.push('Corporate zone — B2B potential');
+  if(a.avgOffices>=4) pros.push('Dense offices — lunch & convenience demand');
+  if(a.avgMalls>=1) pros.push('Mall nearby — high footfall zone');
+  if(a.avgSafety>=0.75) pros.push('Safe neighbourhood');
+  else if(a.avgSafety<0.65) cons.push('Lower safety index');
+  if(a.avgIncome>=80000) pros.push('High-income catchment area');
+  if(a.avgCourts+a.avgGovt>=2) pros.push('Govt/court cluster — document demand');
+
+  const poiChips=[
+    {icon:'🏫',val:a.avgSchools,lbl:'Schools'},
+    {icon:'🎓',val:+(a.avgColleges+a.avgUniversities).toFixed(1),lbl:'Colleges'},
+    {icon:'🏥',val:a.avgHospitals,lbl:'Hospitals'},
+    {icon:'🏢',val:+(a.avgOffices+a.avgCorporates).toFixed(1),lbl:'Offices'},
+    {icon:'🛍️',val:a.avgMalls,lbl:'Malls'},
+    {icon:'🏦',val:a.avgBanks,lbl:'Banks'},
+    {icon:'⚖️',val:a.avgCourts,lbl:'Courts'},
+    {icon:'🏛️',val:a.avgGovt,lbl:'Govt'},
+    {icon:'🌳',val:a.avgParks,lbl:'Parks'},
+    {icon:'🚌',val:a.avgBusStops,lbl:'Bus Stops'},
+  ].filter(p=>p.val>0).map(p=>`<span class="poi-chip">${p.icon} <b>${p.val}</b> ${p.lbl}</span>`).join('');
+
+  return `
+    <div class="area-card ${isBest?'best':''}">
+      ${isBest?'<div class="best-badge">⭐ Best Pick</div>':''}
+      <div class="ac-header">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div><div class="ac-name">${escHtml(a.name)}</div><div class="ac-sub">${a.count} data entries</div></div>
+          <div style="text-align:right"><div class="ac-score-val">${a.avgScore}</div><div class="ac-score-lbl">avg potential</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+          <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${a.avgScore}%"></div></div>
+        </div>
+      </div>
+      <div class="ac-body">
+        <div class="metric-row"><span class="metric-lbl">Avg Rent</span><span class="metric-val ${cls(a.avgRent,maxRent,true)}">₹${a.avgRent}/sqft</span></div>
+        <div class="metric-row"><span class="metric-lbl">Success Rate</span><span class="metric-val ${cls(a.avgSuccess,maxSuccess)}">${a.avgSuccess}%</span></div>
+        <div class="metric-row"><span class="metric-lbl">Competition</span><span class="metric-val ${cls(a.avgComp,maxComp,true)}">${Math.round(a.avgComp*100)}%</span></div>
+        <div class="metric-row"><span class="metric-lbl">Foot Traffic</span><span class="metric-val ${cls(a.avgTraffic,maxTraffic)}">${(a.avgTraffic/1000).toFixed(1)}k/mo</span></div>
+        <div class="metric-row"><span class="metric-lbl">Avg Income</span><span class="metric-val">₹${Math.round(a.avgIncome/1000)}k</span></div>
+        <div class="metric-row"><span class="metric-lbl">Safety</span><span class="metric-val ${a.avgSafety>=.75?'good':a.avgSafety>=.55?'warn':'bad'}">${Math.round(a.avgSafety*100)}%</span></div>
+        <div class="metric-row"><span class="metric-lbl">Parking</span><span class="metric-val">${escHtml(a.parking)}</span></div>
+        <div class="metric-row"><span class="metric-lbl">Common Businesses</span><span class="metric-val" style="font-size:11px">${a.topBtypes.map(b=>`<span class="tag tag-gray">${escHtml(b)}</span>`).join(' ')}</span></div>
+
+        <div style="margin-top:10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--blue);margin-bottom:4px">Nearby Places (avg)</div>
+        <div class="poi-row">${poiChips||'<span style="font-size:11px;color:var(--ink3)">No POI data</span>'}</div>
+
+        <div class="pros-cons">
+          <div class="pc-block" style="background:var(--accent-light)">
+            <div class="pc-title" style="color:var(--accent2)">✓ Strengths</div>
+            ${pros.length?pros.map(p=>`<div class="pc-item"><span style="color:var(--accent2)">·</span>${escHtml(p)}</div>`).join(''):'<div class="pc-item" style="color:var(--ink3)">None identified</div>'}
+          </div>
+          <div class="pc-block" style="background:var(--warn-light)">
+            <div class="pc-title" style="color:var(--warn)">✗ Concerns</div>
+            ${cons.length?cons.map(c=>`<div class="pc-item"><span style="color:var(--warn)">·</span>${escHtml(c)}</div>`).join(''):'<div class="pc-item" style="color:var(--ink3)">None identified</div>'}
+          </div>
+        </div>
+        <div class="rec-box">
+          <div class="rec-lbl">Top recommendation</div>
+          <div class="rec-val">💡 ${escHtml(a.topRec)}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+document.getElementById('compareBtn').addEventListener('click',async()=>{
+  const names=['area1','area2','area3'].map(id=>document.getElementById(id).value).filter(Boolean);
+  if(names.length<2){alert('Please select at least 2 areas.');return;}
+  const btn=document.getElementById('compareBtn');
+  btn.innerHTML='<span class="spin"></span> Loading…'; btn.disabled=true;
+  try{
+    const areas=(await Promise.all(names.map(getAreaData))).filter(Boolean);
+    const best=areas.reduce((b,a)=>a.avgScore>b.avgScore?a:b);
+    document.getElementById('winnerBanner').style.display='flex';
+    document.getElementById('winnerBanner').innerHTML=`
+      <div class="winner-banner">
+        <div class="winner-icon">🏆</div>
+        <div><div class="winner-lbl">Best overall area from your selection</div><div class="winner-val">${escHtml(best.name)} — Score ${best.avgScore}/100</div></div>
+      </div>`;
+    const cls=`n${areas.length}`;
+    document.getElementById('compareOutput').innerHTML=`<div class="compare-grid ${cls}">${areas.map(a=>renderCard(a,a.name===best.name,areas)).join('')}</div>`;
+  }catch(e){alert('Error: '+e.message);}
+  finally{btn.textContent='Compare →';btn.disabled=false;}
+});
+
+document.getElementById('clearBtn').addEventListener('click',()=>{
+  ['area1','area2','area3'].forEach(id=>{document.getElementById(id).value='';});
+  document.getElementById('compareOutput').innerHTML='';
+  document.getElementById('winnerBanner').style.display='none';
+});
+
+init().catch(e=>{
+  document.getElementById('selectorRow').innerHTML=`<div style="color:var(--danger);font-size:13px">⚠️ ${e.message} — Make sure the backend is running.</div>`;
+});
+</script>
+</body>
+</html>

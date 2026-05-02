@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Analytics — BizSpot</title>
+<link rel="stylesheet" href="../styles/main.css"/>
+<style>
+.header{background:var(--accent);color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:100}
+.logo{font-family:var(--font-head);font-weight:800;font-size:19px;display:flex;align-items:center;gap:8px;color:#fff}
+.nav-link{padding:5px 13px;border-radius:6px;font-size:12px;font-weight:600;color:rgba(255,255,255,.7);transition:all .15s}
+.nav-link:hover,.nav-link.active{background:rgba(255,255,255,.18);color:#fff}
+.page{max-width:1160px;margin:0 auto;padding:28px 20px}
+.pg-title{font-family:var(--font-head);font-weight:800;font-size:26px;margin-bottom:4px}
+.pg-sub{font-size:13px;color:var(--ink3);margin-bottom:24px}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px}
+@media(max-width:700px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:16px 18px}
+.kpi-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)}
+.kpi-val{font-family:var(--font-head);font-weight:800;font-size:26px;color:var(--ink);margin-top:2px}
+.kpi-sub{font-size:11px;color:var(--ink3);margin-top:1px}
+.section{margin-bottom:32px}
+.sec-title{font-family:var(--font-head);font-weight:700;font-size:14px;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--accent-light)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:800px){.two-col{grid-template-columns:1fr}}
+.card-body{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:18px}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bar-name{font-size:12px;color:var(--ink2);min-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-outer{flex:1;height:14px;background:var(--surface2);border-radius:7px;overflow:hidden}
+.bar-inner{height:100%;border-radius:7px;transition:width .6s ease}
+.bar-val{font-size:11px;color:var(--ink3);min-width:36px;text-align:right;font-weight:500}
+.rank-table{width:100%;border-collapse:collapse}
+.rank-table th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink3);padding:6px 10px;text-align:left;border-bottom:2px solid var(--border)}
+.rank-table td{font-size:12px;padding:8px 10px;border-bottom:1px solid var(--border);color:var(--ink2)}
+.rank-table tr:hover td{background:var(--surface2)}
+.rank-num{font-family:var(--font-head);font-weight:800;color:var(--ink3);font-size:13px}
+.heatmap-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+@media(max-width:700px){.heatmap-grid{grid-template-columns:repeat(3,1fr)}}
+.hm-cell{border-radius:var(--radius-sm);padding:10px 8px;text-align:center}
+.hm-name{font-size:10px;font-weight:600;line-height:1.3;margin-bottom:3px}
+.hm-val{font-family:var(--font-head);font-weight:800;font-size:15px}
+.poi-avg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:700px){.poi-avg-grid{grid-template-columns:repeat(2,1fr)}}
+.poi-avg-card{background:var(--blue-light);border:1px solid #bfdbfe;border-radius:var(--radius-sm);padding:10px 12px;display:flex;align-items:center;gap:10px}
+.poi-icon{font-size:22px}
+.poi-val{font-family:var(--font-head);font-weight:800;font-size:20px;color:var(--blue)}
+.poi-lbl{font-size:10px;color:var(--ink3)}
+.loading{display:flex;align-items:center;justify-content:center;gap:12px;padding:48px;color:var(--ink3);font-size:13px}
+.spin{display:inline-block;width:22px;height:22px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .65s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="logo"><div class="pulse-dot"></div>BizSpot</div>
+  <nav style="display:flex;gap:4px">
+    <a href="../index.html"    class="nav-link">Map</a>
+    <a href="analytics.html"  class="nav-link active">Analytics</a>
+    <a href="compare.html"    class="nav-link">Compare</a>
+  </nav>
+</header>
+<div class="page" id="page">
+  <div class="loading"><div class="spin"></div>Loading analytics…</div>
+</div>
+<script type="module">
+import { getStats, searchLocations } from '../components/api.js';
+import { potentialColor, escHtml } from '../components/utils.js';
+
+async function render(){
+  const [stats,all]=await Promise.all([getStats(),searchLocations({limit:600,sort:'potential'})]);
+  const locs=all.locations;
+  const page=document.getElementById('page');
+
+  const kpiHtml=`
+    <div class="pg-title">Analytics Dashboard</div>
+    <div class="pg-sub">Coimbatore Business Intelligence · ${stats.total_locations} data points · ${stats.unique_areas} areas</div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-lbl">Total Locations</div><div class="kpi-val">${stats.total_locations}</div><div class="kpi-sub">in dataset</div></div>
+      <div class="kpi"><div class="kpi-lbl">Areas Covered</div><div class="kpi-val">${stats.unique_areas}</div><div class="kpi-sub">neighbourhoods</div></div>
+      <div class="kpi"><div class="kpi-lbl">Business Types</div><div class="kpi-val">${stats.business_types}</div><div class="kpi-sub">categories</div></div>
+      <div class="kpi"><div class="kpi-lbl">Rent Range</div><div class="kpi-val">₹${stats.rent_range.min_rent}–${stats.rent_range.max_rent}</div><div class="kpi-sub">per sqft/mo</div></div>
+    </div>
+  `;
+
+  // Area rankings
+  const areaMap={};
+  locs.forEach(r=>{if(!areaMap[r.location_name])areaMap[r.location_name]=[];areaMap[r.location_name].push(r);});
+  const areaRows=Object.entries(areaMap).map(([name,rows])=>({
+    name,count:rows.length,
+    avgRent:   Math.round(rows.reduce((s,r)=>s+(r.avg_rent_per_sqft||0),0)/rows.length),
+    avgSuccess:+(rows.reduce((s,r)=>s+(r.success_rate||0),0)/rows.length).toFixed(1),
+    avgComp:   +(rows.reduce((s,r)=>s+(r.competition_index||0),0)/rows.length).toFixed(2),
+    avgTraffic:Math.round(rows.reduce((s,r)=>s+(r.foot_traffic||0),0)/rows.length),
+    avgSchools:+(rows.reduce((s,r)=>s+(r.nearby_schools||0),0)/rows.length).toFixed(1),
+    avgColleges:+(rows.reduce((s,r)=>s+(r.nearby_colleges||0+(r.nearby_universities||0)),0)/rows.length).toFixed(1),
+    avgHospitals:+(rows.reduce((s,r)=>s+(r.nearby_hospitals||0),0)/rows.length).toFixed(1),
+    avgOffices:+(rows.reduce((s,r)=>s+(r.nearby_offices||0)+(r.nearby_corporates||0),0)/rows.length).toFixed(1),
+    topRec:    (()=>{const f={};rows.forEach(r=>{f[r.recommended_business]=(f[r.recommended_business]||0)+1;});return Object.entries(f).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';})()
+  })).sort((a,b)=>b.avgSuccess-a.avgSuccess);
+
+  const tableHtml=areaRows.map((a,i)=>`<tr>
+    <td><span class="rank-num">#${i+1}</span></td>
+    <td style="font-weight:600;color:var(--ink)">${escHtml(a.name)}</td>
+    <td style="color:${potentialColor(a.avgSuccess)};font-weight:600">${a.avgSuccess}%</td>
+    <td>₹${a.avgRent}/sqft</td>
+    <td>${Math.round(a.avgComp*100)}%</td>
+    <td>${(a.avgTraffic/1000).toFixed(1)}k</td>
+    <td><span style="font-size:10px">🏫${a.avgSchools} 🎓${a.avgColleges} 🏥${a.avgHospitals} 🏢${a.avgOffices}</span></td>
+    <td><span class="tag tag-blue" style="font-size:10px">${escHtml(a.topRec)}</span></td>
+    <td>${a.count}</td>
+  </tr>`).join('');
+
+  // Top areas bar chart
+  const topAreaBars=areaRows.slice(0,8).map(a=>`
+    <div class="bar-row">
+      <span class="bar-name">${escHtml(a.name)}</span>
+      <div class="bar-outer"><div class="bar-inner" style="width:${a.avgSuccess}%;background:${potentialColor(a.avgSuccess)}"></div></div>
+      <span class="bar-val">${a.avgSuccess}%</span>
+    </div>`).join('');
+
+  // Business type bars
+  const btypeBars=stats.by_business_type.map(b=>`
+    <div class="bar-row">
+      <span class="bar-name">${escHtml(b.business_type)}</span>
+      <div class="bar-outer"><div class="bar-inner" style="width:${b.avg_success}%;background:${potentialColor(b.avg_success)}"></div></div>
+      <span class="bar-val">${b.avg_success.toFixed(1)}%</span>
+    </div>`).join('');
+
+  // POI averages
+  const pa=stats.poi_averages||{};
+  const poiCards=[
+    {icon:'🏫',label:'Schools',val:pa.schools},{icon:'🎓',label:'Colleges',val:+(pa.colleges+pa.universities).toFixed(1)},
+    {icon:'🏥',label:'Hospitals',val:pa.hospitals},{icon:'🏢',label:'Offices/Corp.',val:+(pa.offices+pa.corporates).toFixed(1)},
+    {icon:'🛍️',label:'Malls',val:pa.malls},{icon:'🏦',label:'Banks',val:pa.banks},
+    {icon:'⚖️',label:'Courts',val:pa.courts},{icon:'🚌',label:'Bus Stops',val:pa.bus_stops},
+  ].map(p=>`<div class="poi-avg-card"><div class="poi-icon">${p.icon}</div><div><div class="poi-val">${(p.val||0).toFixed(1)}</div><div class="poi-lbl">Avg ${p.label}</div></div></div>`).join('');
+
+  // Recommended business heatmap
+  const recMap={};
+  locs.forEach(r=>{recMap[r.recommended_business]=(recMap[r.recommended_business]||0)+1;});
+  const recMax=Math.max(...Object.values(recMap));
+  const heatCells=Object.entries(recMap).sort((a,b)=>b[1]-a[1]).map(([name,count])=>{
+    const pct=count/recMax; const bg=`rgba(26,61,43,${0.1+pct*.85})`; const txt=pct>.5?'#fff':'var(--accent)';
+    return `<div class="hm-cell" style="background:${bg}"><div class="hm-name" style="color:${txt}">${escHtml(name)}</div><div class="hm-val" style="color:${txt}">${count}</div></div>`;
+  }).join('');
+
+  // Rent distribution
+  const rentBuckets=[[22,50],[51,75],[76,100],[101,130],[131,200]];
+  const rentLabels=['₹22–50','₹51–75','₹76–100','₹101–130','₹131+'];
+  const rentCounts=rentBuckets.map(([lo,hi])=>locs.filter(r=>r.avg_rent_per_sqft>=lo&&r.avg_rent_per_sqft<=hi).length);
+  const rentMax=Math.max(...rentCounts);
+  const rentBars=rentCounts.map((c,i)=>`
+    <div class="bar-row">
+      <span class="bar-name">${rentLabels[i]}</span>
+      <div class="bar-outer"><div class="bar-inner" style="width:${(c/rentMax*100).toFixed(0)}%;background:var(--blue)"></div></div>
+      <span class="bar-val">${c}</span>
+    </div>`).join('');
+
+  page.innerHTML=kpiHtml+`
+    <div class="section">
+      <div class="sec-title">📊 Area Rankings</div>
+      <div class="card-body" style="overflow-x:auto">
+        <table class="rank-table">
+          <thead><tr><th>#</th><th>Area</th><th>Avg Success</th><th>Avg Rent</th><th>Competition</th><th>Foot Traffic</th><th>Nearby POIs (avg)</th><th>Top Rec.</th><th>Entries</th></tr></thead>
+          <tbody>${tableHtml}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="section">
+      <div class="sec-title">🏙️ Average Nearby Places per Location</div>
+      <div class="poi-avg-grid">${poiCards}</div>
+    </div>
+    <div class="section">
+      <div class="two-col">
+        <div><div class="sec-title">🏆 Top Areas by Success Rate</div><div class="card-body">${topAreaBars}</div></div>
+        <div><div class="sec-title">💼 Business Type Performance</div><div class="card-body">${btypeBars}</div></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="sec-title">💡 Recommended Business Frequency</div>
+      <div class="card-body"><p style="font-size:12px;color:var(--ink3);margin-bottom:12px">How often each business is recommended. Darker = more recommended.</p><div class="heatmap-grid">${heatCells}</div></div>
+    </div>
+    <div class="section">
+      <div class="sec-title">💰 Rent Distribution</div>
+      <div class="card-body" style="max-width:600px">${rentBars}</div>
+    </div>
+  `;
+}
+render().catch(e=>{document.getElementById('page').innerHTML=`<div style="padding:40px;text-align:center;color:var(--danger)"><div style="font-size:28px;margin-bottom:10px">⚠️</div><div style="font-size:14px">${e.message}</div><br><a href="../index.html" class="btn btn-primary">← Back to Map</a></div>`;});
+</script>
+</body>
+</html>

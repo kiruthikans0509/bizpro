@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BizSpot — Real Business Location Intelligence, Coimbatore</title>
+<link rel="stylesheet" href="styles/main.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+html,body{height:100%;margin:0;overflow:hidden}
+.header{position:fixed;top:0;left:0;right:0;z-index:2000;background:var(--accent);color:#fff;height:52px;padding:0 20px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-family:var(--font-head);font-weight:800;font-size:19px;display:flex;align-items:center;gap:8px;color:#fff}
+.nav-link{padding:5px 13px;border-radius:6px;font-size:12px;font-weight:600;color:rgba(255,255,255,.7);transition:all .15s}
+.nav-link:hover,.nav-link.active{background:rgba(255,255,255,.18);color:#fff}
+#map{position:fixed;top:52px;left:0;right:0;bottom:0;z-index:1}
+
+/* ── Autocomplete ── */
+.ac-wrap{position:relative}
+.ac-drop{display:none;position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--surface);border:1.5px solid var(--accent2);border-radius:8px;z-index:5000;box-shadow:0 6px 20px rgba(0,0,0,.15);max-height:210px;overflow-y:auto}
+.ac-drop.open{display:block}
+.ac-item{padding:8px 12px;font-size:13px;color:var(--ink);cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.ac-focused{background:var(--accent-light);color:var(--accent)}
+.ac-item b{color:var(--accent);font-weight:700}
+
+/* ── Search panel ── */
+#searchPanel{position:fixed;top:62px;left:10px;width:310px;background:var(--surface);border-radius:14px;border:1px solid var(--border);box-shadow:0 4px 24px rgba(0,0,0,.14);z-index:1000;overflow:hidden}
+.sp-head{background:var(--accent);color:#fff;padding:10px 14px 8px;display:flex;align-items:center;justify-content:space-between}
+.sp-title{font-family:var(--font-head);font-weight:800;font-size:13px}
+.sp-toggle{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.sp-body{padding:12px 14px 10px}
+#searchPanel.collapsed .sp-body,#searchPanel.collapsed .chip-bar{display:none}
+.sp-field{margin-bottom:8px}
+.sp-field label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:3px}
+.sp-field input,.sp-field select{width:100%;padding:7px 10px;border:1.5px solid var(--border2);border-radius:8px;font-size:13px;color:var(--ink);background:var(--surface);outline:none;transition:border-color .15s}
+.sp-field input:focus,.sp-field select:focus{border-color:var(--accent2)}
+.sp-row{display:flex;gap:8px;margin-bottom:8px}
+.sp-row .sp-field{flex:1;margin-bottom:0}
+.sp-btns{display:flex;gap:7px;margin-top:10px}
+.sp-btns .btn{flex:1;padding:8px 0;font-size:12px}
+.chip-bar{padding:8px 14px 10px;display:flex;flex-wrap:wrap;gap:4px;border-top:1px solid var(--border)}
+.chip-lbl{font-size:9px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;width:100%;margin-bottom:3px}
+.chip{padding:3px 9px;border-radius:999px;font-size:10px;font-weight:600;cursor:pointer;border:1.5px solid var(--border2);color:var(--ink2);background:var(--surface);transition:all .12s;white-space:nowrap;user-select:none}
+.chip:hover{border-color:var(--accent2);color:var(--accent)}
+.chip.active{border-color:var(--accent);background:var(--accent-light);color:var(--accent)}
+#statusBar{padding:5px 14px;font-size:11px;color:var(--ink3);background:var(--surface2);border-top:1px solid var(--border);display:flex;align-items:center;gap:6px;min-height:26px}
+.spin{display:inline-block;width:9px;height:9px;border:1.5px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0}
+
+/* ── Results panel (draggable) ── */
+#resultsPanel{position:fixed;top:62px;right:12px;width:350px;height:calc(100vh - 74px);background:var(--surface);border-radius:14px;border:1px solid var(--border);box-shadow:0 4px 28px rgba(0,0,0,.15);z-index:1000;display:flex;flex-direction:column;overflow:hidden;user-select:none}
+.rp-head{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 14px 8px;display:flex;align-items:center;gap:8px;cursor:grab;flex-shrink:0;border-radius:14px 14px 0 0}
+.rp-head:active{cursor:grabbing}
+.drag-dots{display:flex;flex-direction:column;gap:3px;opacity:.35}
+.drag-dots span{display:flex;gap:3px}
+.drag-dots span b{display:block;width:3px;height:3px;border-radius:50%;background:var(--ink3)}
+.rp-title{font-family:var(--font-head);font-weight:800;font-size:14px;flex:1}
+.rp-count{font-size:11px;color:var(--ink3);background:var(--surface2);padding:2px 8px;border-radius:999px;border:1px solid var(--border)}
+.rp-actions{display:flex;gap:5px}
+.rp-btn{width:26px;height:26px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--ink3);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s}
+.rp-btn:hover{background:var(--border);color:var(--ink)}
+.rp-list{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px 10px;min-height:0}
+.rp-list::-webkit-scrollbar{width:4px}
+.rp-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.rp-stats{display:flex;flex-shrink:0;background:var(--accent);color:#fff;border-top:1px solid rgba(255,255,255,.1);border-radius:0 0 14px 14px}
+.rp-stats.hidden{display:none}
+.rps-item{flex:1;padding:7px 4px;text-align:center;border-right:1px solid rgba(255,255,255,.12)}
+.rps-item:last-child{border-right:none}
+.rps-val{font-family:var(--font-head);font-weight:800;font-size:13px;line-height:1}
+.rps-lbl{font-size:8px;opacity:.6;text-transform:uppercase;letter-spacing:.05em;margin-top:1px}
+.rp-resize{position:absolute;bottom:0;left:0;right:0;height:8px;cursor:ns-resize;display:flex;align-items:center;justify-content:center}
+.rp-resize::after{content:'';display:block;width:36px;height:3px;border-radius:2px;background:var(--border2);margin-bottom:2px}
+
+/* ── Result cards ── */
+.result-card{padding:10px 11px;border-radius:9px;border:1.5px solid var(--border);margin-bottom:6px;cursor:pointer;transition:all .15s;background:var(--surface)}
+.result-card:hover{border-color:var(--accent2);background:var(--accent-light)}
+.result-card.active{border-color:var(--accent);background:var(--accent-light)}
+.rc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:3px}
+.rc-name{font-family:var(--font-head);font-weight:700;font-size:13px;color:var(--ink);line-height:1.2}
+.rc-sub{font-size:11px;color:var(--ink3);margin-bottom:5px}
+.rc-tags{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px}
+.poi-pills{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px}
+.poi-pill{display:inline-flex;align-items:center;gap:2px;padding:2px 6px;border-radius:999px;font-size:9px;font-weight:600;background:var(--blue-light);color:var(--blue);border:1px solid #bfdbfe}
+.rc-bar{display:flex;align-items:center;gap:6px}
+.rc-bar-track{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.rc-bar-fill{height:100%;border-radius:2px;transition:width .4s}
+.rc-bar-num{font-size:10px;font-weight:700;color:var(--ink3);min-width:26px;text-align:right}
+
+/* ── Live intelligence panel ── */
+#intelPanel{position:fixed;bottom:16px;left:330px;right:375px;background:var(--surface);border-radius:14px;border:1px solid var(--border);box-shadow:0 8px 40px rgba(0,0,0,.18);z-index:1200;display:none;overflow:hidden;max-height:calc(100vh - 200px);overflow-y:auto}
+#intelPanel.open{display:block}
+.ip-head{background:var(--accent);color:#fff;padding:11px 16px;display:flex;align-items:center;justify-content:space-between}
+.ip-title{font-family:var(--font-head);font-weight:800;font-size:15px}
+.ip-sub{font-size:11px;opacity:.7;margin-top:1px}
+.ip-close{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.ip-close:hover{background:rgba(255,255,255,.35)}
+.ip-body{padding:14px 16px}
+.ip-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.ip-stat{background:var(--surface2);border-radius:8px;padding:8px 10px}
+.ip-stat-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)}
+.ip-stat-val{font-family:var(--font-head);font-weight:800;font-size:16px;color:var(--ink);margin-top:1px}
+.ip-stat-sub{font-size:9px;color:var(--ink3)}
+.ip-rent-bar{background:var(--warn-light);border:1.5px solid #d97706;border-radius:9px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:14px}
+.ip-rent-lbl{font-size:10px;color:var(--warn);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.ip-rent-range{font-family:var(--font-head);font-weight:800;font-size:18px;color:var(--warn)}
+.ip-rent-note{font-size:10px;color:var(--ink3);margin-top:2px}
+.ip-pois{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;background:var(--blue-light);border:1px solid #bfdbfe;border-radius:9px;padding:10px 12px}
+.ip-poi-tag{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--blue);font-weight:600}
+.ip-poi-icon{font-size:15px}
+.ip-poi-names{font-size:9px;color:var(--ink3);font-weight:400}
+.ip-recs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.ip-rec{background:var(--accent-light);border:1.5px solid var(--accent2);border-radius:9px;padding:9px 11px}
+.ip-rec-rank{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--accent2);margin-bottom:3px}
+.ip-rec-type{font-family:var(--font-head);font-weight:700;font-size:12px;color:var(--accent)}
+.ip-rec-reason{font-size:10px;color:var(--ink3);margin-top:3px;line-height:1.4}
+.ip-loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:32px;color:var(--ink3);font-size:13px}
+.ip-error{padding:20px;text-align:center;color:var(--danger);font-size:12px}
+.ip-src{font-size:9px;color:var(--ink3);text-align:right;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
+
+/* ── Map legend ── */
+#mapLegend{position:fixed;bottom:20px;left:330px;z-index:999;background:rgba(255,255,255,.97);border-radius:10px;padding:10px 13px;border:1px solid var(--border);box-shadow:0 2px 12px rgba(0,0,0,.1)}
+#intelPanel.open ~ #mapLegend{display:none}
+.legend-title{font-family:var(--font-head);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:5px}
+.legend-row{display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:11px;color:var(--ink2)}
+.legend-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+
+#showResultsBtn{display:none;position:fixed;bottom:20px;right:12px;z-index:1001;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-family:var(--font-head);font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+
+/* Map click hint */
+.map-hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(26,61,43,.9);color:#fff;padding:7px 16px;border-radius:999px;font-size:11px;font-weight:500;z-index:998;pointer-events:none;transition:opacity .3s}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo"><div class="pulse-dot"></div>BizSpot</div>
+  <nav style="display:flex;gap:4px">
+    <a href="index.html"            class="nav-link active">Map</a>
+    <a href="pages/analytics.html"  class="nav-link">Analytics</a>
+    <a href="pages/compare.html"    class="nav-link">Compare</a>
+  </nav>
+</header>
+
+<div id="map"></div>
+
+<div id="mapLegend">
+  <div class="legend-title">Business Potential</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#16a34a"></div>Excellent (≥75%)</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#ca8a04"></div>Good (50–74%)</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#dc2626"></div>Low (&lt;50%)</div>
+  <div style="margin-top:6px;font-size:10px;color:var(--ink3)">Click anywhere for live analysis</div>
+</div>
+
+<div class="map-hint" id="mapHint">📍 Click anywhere on the map for real-time POI analysis</div>
+
+<!-- SEARCH PANEL -->
+<div id="searchPanel">
+  <div class="sp-head">
+    <span class="sp-title">🔍 Search</span>
+    <button class="sp-toggle" id="spToggle">▲</button>
+  </div>
+  <div class="sp-body">
+    <div class="sp-field">
+      <label>Area / Neighbourhood</label>
+      <div class="ac-wrap">
+        <input id="searchInput" placeholder="e.g. Gandhipuram, Peelamedu…" autocomplete="off"/>
+        <div class="ac-drop" id="acDrop"></div>
+      </div>
+    </div>
+    <div class="sp-row">
+      <div class="sp-field"><label>Radius (km)</label><input id="radiusInput" type="number" value="3" min="0.5" max="20" step="0.5"/></div>
+      <div class="sp-field"><label>Min Success %</label><input id="minSuccess" type="number" value="0" min="0" max="100" step="5"/></div>
+    </div>
+    <div class="sp-row">
+      <div class="sp-field"><label>Business Type</label><select id="btypeFilter"><option value="">All types</option></select></div>
+      <div class="sp-field"><label>Max Rent (₹/sqft)</label><input id="maxRent" type="number" placeholder="Any" min="0" max="200" step="10"/></div>
+    </div>
+    <div class="sp-field"><label>Sort By</label>
+      <select id="sortBy">
+        <option value="potential">Business Potential (best first)</option>
+        <option value="success">Success Rate</option>
+        <option value="rent_asc">Rent — Low to High</option>
+        <option value="rent_desc">Rent — High to Low</option>
+        <option value="traffic">Foot Traffic</option>
+        <option value="comp_asc">Competition — Lowest first</option>
+        <option value="distance">Distance from Centre</option>
+      </select>
+    </div>
+    <div class="sp-btns">
+      <button class="btn btn-primary" id="searchBtn">🔍 Search</button>
+      <button class="btn btn-secondary" id="resetBtn">↺ Reset</button>
+      <button class="btn btn-ghost" id="downloadBtn" disabled style="padding:8px 10px;font-size:13px" title="CSV">⬇</button>
+    </div>
+  </div>
+  <div class="chip-bar">
+    <div class="chip-lbl">Quick Filters</div>
+    <span class="chip" data-quick="highSuccess">High Success</span>
+    <span class="chip" data-quick="lowComp">Low Competition</span>
+    <span class="chip" data-quick="cheapRent">Cheap Rent</span>
+    <span class="chip" data-quick="highTraffic">High Traffic</span>
+    <span class="chip" data-quick="colleges">Near Colleges</span>
+    <span class="chip" data-quick="hospitals">Near Hospitals</span>
+    <span class="chip" data-quick="corporate">Corporate Zone</span>
+    <span class="chip" data-quick="safe">Safe Area</span>
+  </div>
+  <div id="statusBar">
+    <span id="statusSpinner" class="spin" style="display:none"></span>
+    <span id="statusText">Ready — type an area or click the map</span>
+  </div>
+</div>
+
+<!-- RESULTS PANEL -->
+<div id="resultsPanel">
+  <div class="rp-head" id="rpHead">
+    <div class="drag-dots"><span><b></b><b></b><b></b></span><span><b></b><b></b><b></b></span></div>
+    <div class="rp-title">Results</div>
+    <div class="rp-count" id="rpCount">0 locations</div>
+    <div class="rp-actions">
+      <button class="rp-btn" id="rpMin" title="Minimise">—</button>
+      <button class="rp-btn" id="rpClose" title="Hide">✕</button>
+    </div>
+  </div>
+  <div class="rp-list" id="rpList">
+    <div style="padding:40px 16px;text-align:center;color:var(--ink3)">
+      <div style="font-size:32px;margin-bottom:10px;opacity:.4">📍</div>
+      <div style="font-family:var(--font-head);font-weight:700;font-size:13px;color:var(--ink2);margin-bottom:5px">Ready to explore</div>
+      <div style="font-size:12px;line-height:1.6">Type an area and click Search.<br>Or click anywhere on the map for live POI analysis.</div>
+    </div>
+  </div>
+  <div class="rp-stats hidden" id="rpStats">
+    <div class="rps-item"><div class="rps-val" id="rsRent">—</div><div class="rps-lbl">Avg Rent</div></div>
+    <div class="rps-item"><div class="rps-val" id="rsSuccess">—</div><div class="rps-lbl">Success</div></div>
+    <div class="rps-item"><div class="rps-val" id="rsComp">—</div><div class="rps-lbl">Comp.</div></div>
+    <div class="rps-item"><div class="rps-val" id="rsCount">—</div><div class="rps-lbl">Total</div></div>
+  </div>
+  <div class="rp-resize" id="rpResize"></div>
+</div>
+
+<button id="showResultsBtn">📋 Show Results</button>
+
+<!-- LIVE INTELLIGENCE PANEL -->
+<div id="intelPanel">
+  <div class="ip-head">
+    <div>
+      <div class="ip-title" id="ipTitle">Live Location Analysis</div>
+      <div class="ip-sub"  id="ipSub">Real data from OpenStreetMap</div>
+    </div>
+    <button class="ip-close" id="ipClose">✕</button>
+  </div>
+  <div class="ip-body" id="ipBody">
+    <div class="ip-loading"><div class="spin" style="width:18px;height:18px;border-width:2px"></div>Fetching real nearby places…</div>
+  </div>
+</div>
+
+<div id="toastContainer" class="toast-container"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module">
+import { searchLocations, getAreas, getBusinessTypes, analyzeLocation, logSearch } from './components/api.js';
+import { potentialColor, potentialTag, competitionTag, rentTag, escHtml, toast, downloadCSV } from './components/utils.js';
+
+// ── State ──────────────────────────────────────────────────
+let map, radiusCircle, markersGroup, clickMarker;
+let allAreas=[], currentResults=[], activeQuick=null, lastCenter=null;
+let acFocusIdx=-1, acItems=[];
+
+// ── Map ────────────────────────────────────────────────────
+map = L.map('map',{zoomControl:false}).setView([11.0168,76.9558],13);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OSM © CARTO',maxZoom:19}).addTo(map);
+L.control.zoom({position:'bottomleft'}).addTo(map);
+markersGroup = L.layerGroup().addTo(map);
+
+// Hide hint after 5s
+setTimeout(()=>{ const h=document.getElementById('mapHint'); if(h) h.style.opacity='0'; }, 5000);
+
+// ── Helpers ────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+function setStatus(msg,loading=false,err=false){
+  $('statusText').textContent=msg;
+  $('statusText').style.color=err?'var(--danger)':'var(--ink3)';
+  $('statusSpinner').style.display=loading?'inline-block':'none';
+}
+
+// ── Autocomplete ───────────────────────────────────────────
+// Uses a committed value store — once user picks a suggestion,
+// we store it separately so input events can't wipe it.
+let committedArea = '';   // the area name that was confirmed by selection
+function closeDrop(){ $('acDrop')?.classList.remove('open'); acItems=[]; acFocusIdx=-1; }
+
+function initAC(areas){
+  const inp = $('searchInput');
+  const drop = $('acDrop');
+
+  function buildDrop(q){
+    const lq = q.toLowerCase().trim();
+    if(!lq){ closeDrop(); return; }
+    const m = areas.filter(a => a.location_name.toLowerCase().includes(lq)).slice(0,10);
+    if(!m.length){ closeDrop(); return; }
+    acItems = m; acFocusIdx = -1;
+    drop.innerHTML = m.map((a,i) => {
+      const hi = a.location_name.replace(new RegExp(`(${lq})`,'gi'),'<b>$1</b>');
+      return `<div class="ac-item" data-name="${a.location_name}" data-idx="${i}">${hi}</div>`;
+    }).join('');
+    drop.classList.add('open');
+  }
+
+  // Input typing → show suggestions
+  inp.addEventListener('input', ()=>{
+    committedArea = '';   // user is editing, clear any prior commitment
+    buildDrop(inp.value);
+  });
+
+  // Click on a suggestion — use pointerdown so it fires before blur
+  drop.addEventListener('pointerdown', ev=>{
+    const item = ev.target.closest('.ac-item');
+    if(!item) return;
+    ev.preventDefault();   // prevent input blur
+    const name = item.dataset.name;
+    inp.value = name;
+    committedArea = name;  // lock this value in
+    closeDrop();
+    // Directly trigger the search (not via searchBtn.click to avoid conflicts)
+    doSearch();
+  });
+
+  // Arrow keys + Enter in the input
+  inp.addEventListener('keydown', e=>{
+    if(e.key === 'ArrowDown'){ e.preventDefault(); moveFocus(1);  return; }
+    if(e.key === 'ArrowUp')  { e.preventDefault(); moveFocus(-1); return; }
+    if(e.key === 'Escape')   { closeDrop(); return; }
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      if(acFocusIdx >= 0 && acItems[acFocusIdx]){
+        inp.value = acItems[acFocusIdx].location_name;
+        committedArea = inp.value;
+        closeDrop();
+      }
+      doSearch();
+    }
+  });
+
+  // Close when clicking outside
+  document.addEventListener('pointerdown', e=>{
+    if(!e.target.closest('.ac-wrap') && !e.target.closest('#searchBtn')) closeDrop();
+  });
+
+  function moveFocus(d){
+    const items = drop.querySelectorAll('.ac-item');
+    if(!items.length) return;
+    items[acFocusIdx]?.classList.remove('ac-focused');
+    acFocusIdx = Math.max(-1, Math.min(items.length-1, acFocusIdx+d));
+    if(acFocusIdx >= 0){ items[acFocusIdx].classList.add('ac-focused'); inp.value = acItems[acFocusIdx].location_name; }
+  }
+}
+
+// ── The one true search function (called from btn, autocomplete, chips) ──────
+async function doSearch(){
+  // Read the area — prefer committed value, fall back to what's in the input
+  const query = (committedArea || $('searchInput').value || '').trim();
+  const btn = $('searchBtn');
+  btn.textContent = '⏳'; btn.disabled = true;
+  closeDrop();
+
+  try{
+    let center = null;
+
+    if(query){
+      setStatus('Finding location…', true);
+      center = await geocode(query);
+      lastCenter = center;
+      const radius = parseFloat($('radiusInput').value) || 3;
+      if(radiusCircle){ map.removeLayer(radiusCircle); radiusCircle=null; }
+      radiusCircle = L.circle([center.lat,center.lng],{
+        radius:radius*1000, color:'#7c3aed', weight:2,
+        fillColor:'#7c3aed', fillOpacity:.07, dashArray:'6 4'
+      }).addTo(map);
+      const zoom = radius<=1?15 : radius<=2?14 : radius<=4?13 : radius<=7?12 : 11;
+      map.flyTo([center.lat,center.lng], zoom, {duration:.9});
+    } else if(lastCenter){
+      center = lastCenter;
+      const radius = parseFloat($('radiusInput').value) || 3;
+      if(radiusCircle){ map.removeLayer(radiusCircle); radiusCircle=null; }
+      radiusCircle = L.circle([center.lat,center.lng],{
+        radius:radius*1000, color:'#7c3aed', weight:2,
+        fillColor:'#7c3aed', fillOpacity:.07, dashArray:'6 4'
+      }).addTo(map);
+    }
+
+    setStatus('Searching…', true);
+    await runSearch(center);
+  } catch(e){
+    setStatus('⚠️ '+e.message, false, true);
+    toast(e.message, 'error');
+  } finally{
+    btn.textContent = '🔍 Search'; btn.disabled = false;
+  }
+}
+
+// Wire search button to doSearch
+$('searchBtn').addEventListener('click', doSearch);
+
+// ── Geocode ────────────────────────────────────────────────
+async function geocode(name){
+  const q=name.toLowerCase().trim();
+  const ex=allAreas.find(a=>a.location_name.toLowerCase()===q);
+  if(ex) return {lat:ex.lat,lng:ex.lng};
+  const fz=allAreas.find(a=>a.location_name.toLowerCase().includes(q)||q.includes(a.location_name.toLowerCase()));
+  if(fz) return {lat:fz.lat,lng:fz.lng};
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(name+', Coimbatore, India')}&format=json&limit=1`,{headers:{'Accept-Language':'en'}});
+    const d=await r.json(); if(d.length) return{lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)};
+  }catch(_){}
+  throw new Error(`Location "${name}" not found. Try: Gandhipuram, RS Puram, Peelamedu…`);
+}
+
+// ── Boot ───────────────────────────────────────────────────
+async function init(){
+  setStatus('Loading…',true);
+  try{
+    const [areas,btypes]=await Promise.all([getAreas(),getBusinessTypes()]);
+    allAreas=areas;
+    initAC(areas);
+    const sel=$('btypeFilter');
+    btypes.forEach(b=>{const o=document.createElement('option');o.value=b.business_type;o.textContent=`${b.business_type} (${b.count})`;sel.appendChild(o);});
+    await runSearch(null);
+    setStatus('Enter area or click map for live analysis');
+  }catch(e){setStatus('⚠️ '+e.message,false,true);toast(e.message,'error');}
+}
+
+// ── Core search ────────────────────────────────────────────
+async function runSearch(center){
+  const radius=parseFloat($('radiusInput').value)||3;
+  const minS=parseFloat($('minSuccess').value)||undefined;
+  const maxR=parseInt($('maxRent').value)||undefined;
+  const btype=$('btypeFilter').value;
+  const sort=$('sortBy').value;
+  const params={sort,limit:500};
+  if(center){params.lat=center.lat;params.lng=center.lng;params.radius=radius;}
+  if(btype)   params.business_type=btype;
+  if(minS)    params.min_success=minS;
+  if(maxR)    params.max_rent=maxR;
+  if(activeQuick==='highSuccess') params.min_success=Math.max(params.min_success||0,70);
+  if(activeQuick==='cheapRent')   params.max_rent=Math.min(params.max_rent||9999,60);
+  const data=await searchLocations(params);
+  let rows=data.locations;
+  if(activeQuick==='highTraffic') rows=rows.filter(r=>r.foot_traffic>=7000);
+  if(activeQuick==='lowComp')     rows=rows.filter(r=>r.competition_index<=0.35);
+  if(activeQuick==='colleges')    rows=rows.filter(r=>(r.nearby_colleges||0)+(r.nearby_universities||0)>=2);
+  if(activeQuick==='hospitals')   rows=rows.filter(r=>(r.nearby_hospitals||0)>=2);
+  if(activeQuick==='corporate')   rows=rows.filter(r=>(r.nearby_corporates||0)>=3);
+  if(activeQuick==='safe')        rows=rows.filter(r=>r.safety_index>=0.75);
+  currentResults=rows;
+  renderList(rows); plotMarkers(rows,center,radius); renderStats(data.stats,rows.length);
+  setStatus(`${rows.length} location${rows.length!==1?'s':''} found${btype?' · '+btype:''}`);
+  if(center) logSearch({lat:center.lat,lng:center.lng,radius_km:radius,results:rows.length});
+}
+
+// ── Map click → search that point + LIVE POI ANALYSIS ──────
+map.on('click', async e=>{
+  const {lat,lng}=e.latlng;
+  const radius=parseFloat($('radiusInput').value)||3;
+
+  // Place click marker
+  if(clickMarker) map.removeLayer(clickMarker);
+  clickMarker=L.circleMarker([lat,lng],{radius:8,color:'#7c3aed',fillColor:'#7c3aed',fillOpacity:.3,weight:2}).addTo(map);
+
+  // Find nearest area name and fill input WITHOUT triggering autocomplete
+  let areaName = '';
+  if(allAreas.length){
+    const nearest=allAreas.reduce((b,a)=>{const d=Math.hypot(a.lat-lat,a.lng-lng);return d<b.d?{d,name:a.location_name}:b},{d:Infinity,name:''});
+    areaName = nearest.name;
+    // Set value without dispatching input event (avoid reopening dropdown)
+    const inp = $('searchInput');
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(inp, areaName);
+    committedArea = areaName;
+  }
+
+  // Draw radius circle and zoom
+  if(radiusCircle){map.removeLayer(radiusCircle);radiusCircle=null;}
+  radiusCircle=L.circle([lat,lng],{radius:radius*1000,color:'#7c3aed',weight:2,fillColor:'#7c3aed',fillOpacity:.07,dashArray:'6 4'}).addTo(map);
+  const zoom=radius<=1?15:radius<=2?14:radius<=4?13:12;
+  map.flyTo([lat,lng],zoom,{duration:.6});
+  lastCenter={lat,lng};
+
+  // Show intel panel loading state
+  $('ipTitle').textContent='Live Location Analysis';
+  $('ipSub').textContent=`${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  $('ipBody').innerHTML=`<div class="ip-loading"><div class="spin" style="width:18px;height:18px;border-width:2px"></div>Fetching real places from OpenStreetMap…</div>`;
+  $('intelPanel').classList.add('open');
+
+  // Run dataset search — independent, no intel fallback re-run
+  runSearch({lat,lng}).catch(e=>setStatus('⚠️ '+e.message,false,true));
+
+  // Run live POI intel — completely separate, won't affect the search
+  analyzeLocation({lat,lng,area_name:areaName,radius_km:Math.min(radius,2)})
+    .then(intel=>renderIntel(intel,areaName,lat,lng))
+    .catch(e=>{
+      $('ipBody').innerHTML=`<div class="ip-error">⚠️ Live POI lookup unavailable (Overpass API blocked on this network).<br><small style="opacity:.7">${e.message}</small></div>`;
+    });
+});
+
+// ── Render live intelligence panel ─────────────────────────
+function renderIntel(d,areaName,lat,lng){
+  const pot=potentialTag(d.demand_score||0);
+  $('ipTitle').textContent=areaName||`${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  $('ipSub').textContent=`${d.radius_km}km radius · ${d.total_pois} real places found · ${d.cached?'cached':'live'} OSM data`;
+
+  // Stats grid
+  const statsHtml=`
+    <div class="ip-stat"><div class="ip-stat-lbl">Demand Score</div><div class="ip-stat-val" style="color:${potentialColor(d.demand_score)}">${d.demand_score}/100</div><div class="ip-stat-sub">${pot.label}</div></div>
+    <div class="ip-stat"><div class="ip-stat-lbl">Competition</div><div class="ip-stat-val">${Math.round(d.competition_index*100)}%</div><div class="ip-stat-sub">${d.competition_index<=.35?'Low':d.competition_index<=.65?'Moderate':'High'}</div></div>
+    <div class="ip-stat"><div class="ip-stat-lbl">Est. Foot Traffic</div><div class="ip-stat-val">${((d.foot_traffic_est||0)/1000).toFixed(1)}k</div><div class="ip-stat-sub">monthly est.</div></div>
+    <div class="ip-stat"><div class="ip-stat-lbl">Safety Score</div><div class="ip-stat-val">${Math.round((d.safety_score||0)*100)}%</div><div class="ip-stat-sub">${(d.safety_score||0)>=.75?'Safe':d.safety_score>=.55?'Moderate':'Risky'}</div></div>
+  `;
+
+  // Rent bar
+  const rent=d.rent||{};
+  const rentHtml=`
+    <div class="ip-rent-bar">
+      <div>
+        <div class="ip-rent-lbl">Approx Shop Rent · ${escHtml(rent.tier||'')}</div>
+        <div class="ip-rent-range">₹${rent.min||'?'}–₹${rent.max||'?'}<span style="font-size:12px;font-weight:400;margin-left:6px">per sqft/mo</span></div>
+        <div class="ip-rent-note">Avg: ₹${rent.avg||'?'}/sqft · ${escHtml(rent.note||'')}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:9px;color:var(--warn);font-weight:600;text-transform:uppercase">Est. Monthly Rent</div>
+        <div style="font-family:var(--font-head);font-weight:800;font-size:16px;color:var(--warn)">
+          ₹${Math.round((rent.avg||60)*400).toLocaleString('en-IN')}–₹${Math.round((rent.avg||60)*1000).toLocaleString('en-IN')}
+        </div>
+        <div style="font-size:9px;color:var(--ink3)">400–1000 sqft shop</div>
+      </div>
+    </div>
+  `;
+
+  // POI pills
+  const poisHtml=d.poi_summary&&d.poi_summary.length ? `
+    <div class="ip-pois">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--blue);width:100%;margin-bottom:6px">📌 Real Nearby Places (within ${d.radius_km}km)</div>
+      ${d.poi_summary.map(p=>`
+        <div class="ip-poi-tag">
+          <span class="ip-poi-icon">${p.icon}</span>
+          <span style="font-weight:800">${p.count}</span>
+          <span>${p.label}</span>
+          ${p.names&&p.names.length ? `<span class="ip-poi-names">— ${p.names.slice(0,2).map(n=>escHtml(n)).join(', ')}${p.names.length>2?' +more':''}</span>` : ''}
+        </div>
+      `).join('')}
+    </div>
+  ` : `<div style="padding:8px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--ink3);margin-bottom:10px">No POI data found in OpenStreetMap for this location. This area may be unmapped — try a more central location.</div>`;
+
+  // Recommendations
+  const recsHtml=d.recommendations&&d.recommendations.length ? `
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent2);margin-bottom:6px">💡 Recommended Businesses (based on real surroundings)</div>
+    <div class="ip-recs">
+      ${d.recommendations.map((r,i)=>`
+        <div class="ip-rec">
+          <div class="ip-rec-rank">#${i+1} Best Fit</div>
+          <div class="ip-rec-type">${escHtml(r.type)}</div>
+          <div class="ip-rec-reason">${escHtml(r.reason)}</div>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
+
+  $('ipBody').innerHTML=`
+    <div class="ip-grid">${statsHtml}</div>
+    ${rentHtml}
+    ${poisHtml}
+    ${recsHtml}
+    <div class="ip-src">Data source: OpenStreetMap Overpass API · Rent: Market research compilation (NoBroker/MagicBricks/99acres Apr 2025)</div>
+  `;
+}
+
+// ── Close intel panel ──────────────────────────────────────
+$('ipClose').addEventListener('click',()=>{
+  $('intelPanel').classList.remove('open');
+  if(clickMarker){map.removeLayer(clickMarker);clickMarker=null;}
+});
+
+// ── Reset ──────────────────────────────────────────────────
+$('resetBtn').addEventListener('click',async()=>{
+  $('searchInput').value=''; committedArea='';
+  $('radiusInput').value='3'; $('minSuccess').value='0';
+  $('maxRent').value=''; $('btypeFilter').value=''; $('sortBy').value='potential';
+  if(radiusCircle){map.removeLayer(radiusCircle);radiusCircle=null;}
+  if(clickMarker){map.removeLayer(clickMarker);clickMarker=null;}
+  $('intelPanel').classList.remove('open');
+  activeQuick=null; lastCenter=null;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  closeDrop(); map.flyTo([11.0168,76.9558],13,{duration:.8});
+  await runSearch(null);
+});
+
+// ── Quick chips ────────────────────────────────────────────
+document.querySelectorAll('.chip').forEach(chip=>{
+  chip.addEventListener('click',()=>{
+    const q=chip.dataset.quick;
+    if(activeQuick===q){activeQuick=null;chip.classList.remove('active');}
+    else{activeQuick=q;document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));chip.classList.add('active');}
+    doSearch();
+  });
+});
+
+$('downloadBtn').addEventListener('click',()=>{ if(currentResults.length){downloadCSV(currentResults);toast('CSV downloaded','success');} });
+
+// ── Render results list ────────────────────────────────────
+function renderList(rows){
+  const list=$('rpList');
+  $('rpCount').textContent=rows.length+' location'+(rows.length!==1?'s':'');
+  $('downloadBtn').disabled=rows.length===0;
+  if(!rows.length){
+    list.innerHTML=`<div style="padding:40px 12px;text-align:center;color:var(--ink3)"><div style="font-size:28px;margin-bottom:8px;opacity:.4">🔍</div><div style="font-family:var(--font-head);font-weight:700;font-size:13px;color:var(--ink2);margin-bottom:4px">No results</div><div style="font-size:12px">Try a bigger radius or fewer filters.</div></div>`;
+    return;
+  }
+  list.innerHTML='';
+  rows.forEach((r,i)=>{
+    const pot=potentialTag(r.success_rate||0), comp=competitionTag(r.competition_index||0.5), rent=rentTag(r.avg_rent_per_sqft||90);
+    const score=r.potential_score??0, col=potentialColor(r.success_rate||0);
+    const dist=r.distance_km!=null?`<span class="tag tag-gray">${r.distance_km.toFixed(1)}km</span>`:'';
+    // POI pills: show most significant ones
+    const pois=[];
+    if((r.nearby_colleges||0)+(r.nearby_universities||0)>0) pois.push(`🎓 ${(r.nearby_colleges||0)+(r.nearby_universities||0)} College${(r.nearby_colleges||0)+(r.nearby_universities||0)>1?'s':''}`);
+    if((r.nearby_schools||0)>0) pois.push(`🏫 ${r.nearby_schools} School${r.nearby_schools>1?'s':''}`);
+    if((r.nearby_hospitals||0)>0) pois.push(`🏥 ${r.nearby_hospitals} Hospital${r.nearby_hospitals>1?'s':''}`);
+    if((r.nearby_malls||0)>0) pois.push(`🛍️ ${r.nearby_malls} Mall${r.nearby_malls>1?'s':''}`);
+    if((r.nearby_corporates||0)>0) pois.push(`🏙️ ${r.nearby_corporates} Corp.`);
+    if((r.nearby_offices||0)>0) pois.push(`🏢 ${r.nearby_offices} Office${r.nearby_offices>1?'s':''}`);
+    if((r.nearby_courts||0)>0) pois.push(`⚖️ ${r.nearby_courts} Court${r.nearby_courts>1?'s':''}`);
+    if((r.nearby_govt_offices||0)>0) pois.push(`🏛️ ${r.nearby_govt_offices} Govt`);
+    if((r.nearby_banks||0)>0) pois.push(`🏦 ${r.nearby_banks} Bank${r.nearby_banks>1?'s':''}`);
+    if((r.nearby_parks||0)>0) pois.push(`🌳 ${r.nearby_parks} Park${r.nearby_parks>1?'s':''}`);
+    if((r.nearby_bus_stops||0)>0) pois.push(`🚌 ${r.nearby_bus_stops} Stops`);
+    const card=document.createElement('div'); card.className='result-card';
+    card.innerHTML=`
+      <div class="rc-top"><div class="rc-name">${escHtml(r.location_name)}</div><span class="tag ${pot.cls}" style="flex-shrink:0">${pot.label}</span></div>
+      <div class="rc-sub">${escHtml(r.business_type)} · <strong>${escHtml(r.recommended_business)}</strong></div>
+      <div class="rc-tags"><span class="tag ${comp.cls}">${comp.label}</span><span class="tag ${rent.cls}">${rent.label}</span>${dist}</div>
+      ${pois.length?`<div class="poi-pills">${pois.slice(0,6).map(p=>`<span class="poi-pill">${escHtml(p)}</span>`).join('')}</div>`:''}
+      <div class="rc-bar"><span style="font-size:10px;color:var(--ink3);min-width:54px">Potential</span><div class="rc-bar-track"><div class="rc-bar-fill" style="width:${score}%;background:${col}"></div></div><span class="rc-bar-num">${score}</span></div>
+    `;
+    card.addEventListener('click',()=>selectCard(i,r));
+    list.appendChild(card);
+  });
+}
+
+// ── Plot markers ───────────────────────────────────────────
+function plotMarkers(rows,center,radius){
+  markersGroup.clearLayers();
+  rows.forEach((r,i)=>{
+    const col=potentialColor(r.success_rate||0);
+    const icon=L.divIcon({className:'',html:`<div style="width:12px;height:12px;border-radius:50%;background:${col};border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.3);cursor:pointer"></div>`,iconSize:[12,12],iconAnchor:[6,6]});
+    L.circle([r.latitude,r.longitude],{radius:(r.existing_businesses||10)*5,color:col,weight:1,fillColor:col,fillOpacity:.07,interactive:false}).addTo(markersGroup);
+    const pois=[];
+    if(r.nearby_schools>0)    pois.push(`🏫 ${r.nearby_schools} school${r.nearby_schools>1?'s':''}`);
+    if(r.nearby_colleges>0)   pois.push(`🎓 ${r.nearby_colleges+(r.nearby_universities||0)} college${r.nearby_colleges>1?'s':''}`);
+    if(r.nearby_hospitals>0)  pois.push(`🏥 ${r.nearby_hospitals} hospital${r.nearby_hospitals>1?'s':''}`);
+    if(r.nearby_malls>0)      pois.push(`🛍️ ${r.nearby_malls} mall`);
+    if(r.nearby_corporates>0) pois.push(`🏙️ ${r.nearby_corporates} corporate${r.nearby_corporates>1?'s':''}`);
+    if(r.nearby_courts>0)     pois.push(`⚖️ ${r.nearby_courts} court`);
+    const m=L.marker([r.latitude,r.longitude],{icon}).addTo(markersGroup);
+    m.bindTooltip(`<div style="font-family:system-ui,sans-serif;font-size:12px;min-width:185px;line-height:1.5"><div style="font-weight:700;margin-bottom:4px">${escHtml(r.location_name)}</div><div style="color:#888">Type: <b style="color:#111">${escHtml(r.business_type)}</b></div><div style="color:#888">Best: <b style="color:#111">${escHtml(r.recommended_business)}</b></div><div style="color:#888">Rent: <b style="color:#111">₹${r.avg_rent_per_sqft}/sqft</b></div><div style="color:#888">Success: <b style="color:#111">${r.success_rate}%</b></div>${pois.length?`<div style="border-top:1px solid #eee;padding-top:4px;margin-top:4px;font-size:11px;color:#555">${pois.join(' · ')}</div>`:''}</div>`,{direction:'top',offset:[0,-9],opacity:.97});
+    m.on('click',()=>selectCard(i,r));
+  });
+  // Fit bounds:
+  // - On initial load (no center, no lastCenter, no filters): fit all
+  // - When filters are active but no search center: fit the filtered subset
+  // - When center was set via search/click: DON'T override the flyTo already done
+  if(rows.length && !center && !lastCenter){
+    const lats=rows.map(r=>r.latitude),lngs=rows.map(r=>r.longitude);
+    try{map.fitBounds([[Math.min(...lats),Math.min(...lngs)],[Math.max(...lats),Math.max(...lngs)]],{padding:[60,60],maxZoom:13});}catch(_){}
+  }
+}
+
+// ── Select card ────────────────────────────────────────────
+function selectCard(i,r){
+  document.querySelectorAll('.result-card').forEach((c,j)=>c.classList.toggle('active',j===i));
+  document.querySelectorAll('.result-card')[i]?.scrollIntoView({block:'nearest',behavior:'smooth'});
+  map.flyTo([r.latitude,r.longitude],15,{duration:.7});
+}
+
+// ── Stats footer ───────────────────────────────────────────
+function renderStats(stats,count){
+  const el=$('rpStats'); if(!stats||count===0){el.classList.add('hidden');return;} el.classList.remove('hidden');
+  $('rsRent').textContent='₹'+stats.avg_rent; $('rsSuccess').textContent=stats.avg_success+'%';
+  $('rsComp').textContent=Math.round(stats.avg_comp*100)+'%'; $('rsCount').textContent=count;
+}
+
+// ── Panel controls ─────────────────────────────────────────
+$('spToggle').addEventListener('click',()=>{
+  const p=$('searchPanel'),b=$('spToggle'); p.classList.toggle('collapsed'); b.textContent=p.classList.contains('collapsed')?'▼':'▲';
+});
+const rpEl=$('resultsPanel'),showBtn=$('showResultsBtn');
+$('rpClose').addEventListener('click',()=>{rpEl.style.display='none';showBtn.style.display='block';});
+$('rpMin').addEventListener('click',()=>{
+  const list=$('rpList'),stats=$('rpStats');
+  const min=list.style.display==='none';
+  list.style.display=min?'':'none'; stats.style.display=min?'':'none';
+  $('rpMin').textContent=min?'—':'□'; rpEl.style.height=min?'':'auto';
+});
+showBtn.addEventListener('click',()=>{rpEl.style.display='';showBtn.style.display='none';});
+
+// ── Drag ───────────────────────────────────────────────────
+(()=>{
+  const h=$('rpHead'); let drag=false,sx,sy,ol,ot;
+  h.addEventListener('mousedown',e=>{if(e.target.closest('.rp-actions'))return;drag=true;sx=e.clientX;sy=e.clientY;const r=rpEl.getBoundingClientRect();ol=r.left;ot=r.top;rpEl.style.right='auto';rpEl.style.bottom='auto';rpEl.style.left=ol+'px';rpEl.style.top=ot+'px';document.body.style.userSelect='none';h.style.cursor='grabbing';});
+  document.addEventListener('mousemove',e=>{if(!drag)return;rpEl.style.left=Math.max(0,Math.min(window.innerWidth-rpEl.offsetWidth,ol+(e.clientX-sx)))+'px';rpEl.style.top=Math.max(0,Math.min(window.innerHeight-rpEl.offsetHeight,ot+(e.clientY-sy)))+'px';});
+  document.addEventListener('mouseup',()=>{drag=false;document.body.style.userSelect='';h.style.cursor='grab';});
+})();
+
+// ── Resize ─────────────────────────────────────────────────
+(()=>{
+  const h=$('rpResize'); let resize=false,sy,sh;
+  h.addEventListener('mousedown',e=>{resize=true;sy=e.clientY;sh=rpEl.offsetHeight;document.body.style.userSelect='none';e.stopPropagation();});
+  document.addEventListener('mousemove',e=>{if(!resize)return;rpEl.style.height=Math.max(180,Math.min(window.innerHeight-80,sh+(e.clientY-sy)))+'px';});
+  document.addEventListener('mouseup',()=>{resize=false;document.body.style.userSelect='';});
+})();
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "bizspot-backend",
+  "version": "2.0.0",
+  "description": "BizSpot — Real location intelligence with live OSM POI data",
+  "main": "index.js",
+  "scripts": {
+    "start": "node --experimental-sqlite index.js",
+    "dev":   "nodemon --exec 'node --experimental-sqlite' index.js",
+    "seed":  "node --experimental-sqlite seed.js"
+  },
+  "dependencies": {
+    "cors":   "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express":"^5.1.0"
+  },
+  "devDependencies": {
+    "nodemon":"^3.1.11"
+  }
+}
